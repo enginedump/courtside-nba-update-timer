@@ -58,12 +58,14 @@ def public_status(value):
 
 
 def read_json(opener, path, method, key=None, service_token=None):
+    if (method, path) not in {("POST", "/api/background/update"), ("GET", "/api/background/status")} or service_token is None:
+        raise SchedulerFailure("invalid-updater-request")
+    if (method == "POST" and key is None) or (method == "GET" and key is not None):
+        raise SchedulerFailure("invalid-updater-request")
     headers = {"Accept": "application/json", "Cache-Control": "no-cache"}
+    headers["OAI-Sites-Authorization"] = "Bearer " + service_token
     if key is not None:
-        if method != "POST" or path != "/api/background/update" or service_token is None:
-            raise SchedulerFailure("invalid-updater-request")
         headers["X-Courtside-Updater-Key"] = key
-        headers["OAI-Sites-Authorization"] = "Bearer " + service_token
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(ORIGIN + path, data=b"{}" if method == "POST" else None, headers=headers, method=method)
     stage = "update" if method == "POST" else "status"
@@ -108,7 +110,7 @@ def run_update(environment=None, opener=None):
     if type(updated.get("ran")) is not bool:
         raise SchedulerFailure("invalid-response")
     previous = public_status(updated)
-    saved = public_status(read_json(opener, "/api/background/status", "GET"))
+    saved = public_status(read_json(opener, "/api/background/status", "GET", service_token=service_token))
     for field in ("lastStartedAt", "lastCompletedAt", "lastSuccessfulAt"):
         before, after = timestamp(previous[field]), timestamp(saved[field])
         if before is not None and (after is None or after < before):
