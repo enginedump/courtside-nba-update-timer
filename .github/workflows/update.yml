@@ -1,0 +1,27 @@
+name: Update Courtside
+
+on:
+  schedule:
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: courtside-background-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read scheduler source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Update and verify persisted status
+        env:
+          COURTSIDE_UPDATER_KEY: ${{ secrets.COURTSIDE_UPDATER_KEY }}
+        run: python3 -B update.py
