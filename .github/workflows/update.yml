@@ -24,4 +24,5 @@ jobs:
       - name: Update and verify persisted status
         env:
           COURTSIDE_UPDATER_KEY: ${{ secrets.COURTSIDE_UPDATER_KEY }}
+          COURTSIDE_SITE_SERVICE_TOKEN: ${{ secrets.COURTSIDE_SITE_SERVICE_TOKEN }}
         run: python3 -B update.py

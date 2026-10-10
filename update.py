@@ -57,10 +57,13 @@ def public_status(value):
     return result
 
 
-def read_json(opener, path, method, key=None):
+def read_json(opener, path, method, key=None, service_token=None):
     headers = {"Accept": "application/json", "Cache-Control": "no-cache"}
     if key is not None:
+        if method != "POST" or path != "/api/background/update" or service_token is None:
+            raise SchedulerFailure("invalid-updater-request")
         headers["X-Courtside-Updater-Key"] = key
+        headers["OAI-Sites-Authorization"] = "Bearer " + service_token
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(ORIGIN + path, data=b"{}" if method == "POST" else None, headers=headers, method=method)
     stage = "update" if method == "POST" else "status"
@@ -95,8 +98,13 @@ def run_update(environment=None, opener=None):
     key = environment.get("COURTSIDE_UPDATER_KEY", "")
     if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", key):
         raise SchedulerFailure("missing-or-invalid-secret")
+    service_token = environment.get("COURTSIDE_SITE_SERVICE_TOKEN", "")
+    if not isinstance(service_token, str) or not 24 <= len(service_token) <= 2048 or any(
+        ord(character) < 33 or ord(character) > 126 for character in service_token
+    ):
+        raise SchedulerFailure("missing-or-invalid-service-token")
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirects())
-    updated = read_json(opener, "/api/background/update", "POST", key)
+    updated = read_json(opener, "/api/background/update", "POST", key, service_token)
     if type(updated.get("ran")) is not bool:
         raise SchedulerFailure("invalid-response")
     previous = public_status(updated)
